@@ -10,8 +10,86 @@ using Microsoft.Data.Entity.Utilities;
 
 namespace Microsoft.Data.Entity.Migrations
 {
+    // TODO: Add base abstraction if we want to support languages other than CSharp.
     public class CSharpModelCodeGenerator
     {
+        public virtual string CodeFileExtension
+        {
+            get { return ".cs"; }
+        }
+
+        public virtual void GenerateClass(
+            [NotNull] string @namespace,
+            [NotNull] string className,
+            [NotNull] IModel model, 
+            [NotNull] IndentedStringBuilder stringBuilder)
+        {
+            Check.NotEmpty(className, "className");
+            Check.NotEmpty(@namespace, "namespace");
+            Check.NotNull(model, "model");
+            Check.NotNull(stringBuilder, "stringBuilder");
+
+            foreach (var ns in GetNamespaces(model))
+            {
+                stringBuilder
+                    .Append("using ")
+                    .Append(ns)
+                    .AppendLine(";");
+            }
+
+            stringBuilder
+                .AppendLine()
+                .Append("namespace ")
+                .AppendLine(@namespace)
+                .AppendLine("{");
+
+            using (stringBuilder.Indent())
+            {
+                stringBuilder
+                    .AppendLine()
+                    .Append("public class ")
+                    .Append(className)
+                    .AppendLine(" : IModelSnapshot")
+                    .AppendLine("{");
+
+                using (stringBuilder.Indent())
+                {
+                    stringBuilder
+                        .AppendLine("public IModel GetModel()")
+                        .AppendLine("{");
+
+                    using (stringBuilder.Indent())
+                    {
+                        Generate(model, stringBuilder);
+                    }
+
+                    stringBuilder.Append("}");
+                }
+
+                stringBuilder
+                    .AppendLine()
+                    .Append("}");
+            }
+
+            stringBuilder
+                .AppendLine()
+                .Append("}");
+        }
+
+        public virtual IReadOnlyList<string> GetNamespaces([NotNull] IModel model)
+        {
+            return GetDefaultNamespaces();
+        }
+
+        public virtual IReadOnlyList<string> GetDefaultNamespaces()
+        {
+            return
+                new[]
+                    {
+                        "Microsoft.Data.Entity.Metadata"
+                    };
+        }
+
         public virtual void Generate(
             [NotNull] IModel model, [NotNull] IndentedStringBuilder stringBuilder)
         {

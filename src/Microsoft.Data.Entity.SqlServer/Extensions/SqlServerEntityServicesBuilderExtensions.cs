@@ -4,6 +4,7 @@
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Identity;
 using Microsoft.Data.Entity.Migrations;
+using Microsoft.Data.Entity.Migrations.Infrastructure;
 using Microsoft.Data.Entity.Relational;
 using Microsoft.Data.Entity.SqlServer;
 using Microsoft.Data.Entity.SqlServer.Utilities;
@@ -28,7 +29,13 @@ namespace Microsoft.Framework.DependencyInjection
                 .AddScoped<SqlServerBatchExecutor, SqlServerBatchExecutor>()
                 .AddScoped<ModelDiffer, ModelDiffer>()
                 .AddScoped<SqlServerMigrationOperationSqlGenerator, SqlServerMigrationOperationSqlGenerator>()
-                .AddScoped<SqlServerDataStoreCreator, SqlServerDataStoreCreator>();
+                .AddScoped<SqlServerDataStoreCreator, SqlServerDataStoreCreator>()
+                .AddScoped<Migrator, SqlServerMigrator>()
+                .AddScoped<HistoryRepository, HistoryRepository>()
+                .AddScoped<MigrationAssembly, MigrationAssembly>()
+                .AddScoped<MigrationScaffolder, MigrationScaffolder>()
+                .AddScoped<CSharpMigrationCodeGenerator, CSharpMigrationCodeGenerator>()
+                .AddScoped<CSharpModelCodeGenerator, CSharpModelCodeGenerator>();
 
             return builder;
         }
