@@ -17,27 +17,17 @@ namespace Microsoft.Data.Entity.Migrations
 {
     public class CSharpMigrationCodeGenerator : MigrationCodeGenerator
     {
-        private readonly CSharpModelCodeGenerator _modelGenerator;
-
         public CSharpMigrationCodeGenerator()
             : this(new CSharpModelCodeGenerator())
         {
         }
 
-        public CSharpMigrationCodeGenerator([NotNull] CSharpModelCodeGenerator modelGenerator)
+        public CSharpMigrationCodeGenerator(CSharpModelCodeGenerator modelCodeGenerator)
+            : base(modelCodeGenerator)
         {
-            Check.NotNull(modelGenerator, "modelGenerator");
-
-            _modelGenerator = modelGenerator;
         }
 
-        public CSharpModelCodeGenerator ModelGenerator
-        {
-            get { return _modelGenerator; }
-        }
-
-        // TODO: Consider adding a base abstraction for CSharp code generators.
-        public virtual string CodeFileExtension
+        public override string CodeFileExtension
         {
             get { return ".cs"; }
         }
@@ -53,7 +43,7 @@ namespace Microsoft.Data.Entity.Migrations
             return stringBuilder.ToString();
         }
 
-        public virtual void GenerateClass(
+        public override void GenerateClass(
             [NotNull] string @namespace,
             [NotNull] string className,
             [NotNull] IMigrationMetadata migration,
@@ -102,14 +92,14 @@ namespace Microsoft.Data.Entity.Migrations
                 .Append("}");
         }
 
-        public virtual void GenerateDesignerClass(
+        public override void GenerateDesignerClass(
             [NotNull] string @namespace,
             [NotNull] string className,
             [NotNull] IMigrationMetadata migration,
             [NotNull] IndentedStringBuilder stringBuilder)
         {
             foreach (var ns in GetMetadataDefaultNamespaces()
-                .Concat(_modelGenerator.GetNamespaces(migration.TargetModel))
+                .Concat(ModelCodeGenerator.GetNamespaces(migration.TargetModel))
                 .OrderBy(n => n))
             {
                 stringBuilder
@@ -156,7 +146,7 @@ namespace Microsoft.Data.Entity.Migrations
 
                     GenerateMigrationProperty(
                         "IModel IMigrationMetadata.TargetModel",
-                        () => _modelGenerator.Generate(migration.TargetModel, stringBuilder),
+                        () => ModelCodeGenerator.Generate(migration.TargetModel, stringBuilder),
                         stringBuilder);
                 }
 

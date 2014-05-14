@@ -26,15 +26,19 @@ namespace Microsoft.Data.Entity.Migrations.Infrastructure
             _contextConfiguration = contextConfiguration;
         }
 
-        // TODO: Consider making Assembly and Namespace configurable.
+        public virtual DbContextConfiguration ContextConfiguration
+        {
+            get { return _contextConfiguration; }
+        }
+
         public virtual Assembly Assembly
         {
-            get { return _contextConfiguration.Context.GetType().Assembly; }
+            get { return ContextConfiguration.GetMigrationAssembly(); }
         }
 
         public virtual string Namespace
         {
-            get { return _contextConfiguration.Context.GetType().Namespace + ".Migrations"; }
+            get { return ContextConfiguration.GetMigrationNamespace(); }
         }
 
         public virtual IReadOnlyList<IMigrationMetadata> Migrations
@@ -56,7 +60,7 @@ namespace Microsoft.Data.Entity.Migrations.Infrastructure
                             && !t.GetTypeInfo().IsGenericType
                             && t.Namespace == Namespace)
                 .Select(t => (IMigrationMetadata)Activator.CreateInstance(t))
-                .OrderBy(m => m.Timestamp)
+                .OrderBy(m => m.Timestamp + m.Name)
                 .ToArray();
         }
 
@@ -70,7 +74,7 @@ namespace Microsoft.Data.Entity.Migrations.Infrastructure
                      && t.Namespace == Namespace);
 
             return modelSnapshotType != null
-                ? ((IModelSnapshot)Activator.CreateInstance(modelSnapshotType)).GetModel()
+                ? ((IModelSnapshot)Activator.CreateInstance(modelSnapshotType)).Model
                 : null;
         }
     }

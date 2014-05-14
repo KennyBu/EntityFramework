@@ -14,6 +14,7 @@ namespace Microsoft.Data.Entity.Migrations.Infrastructure
     public class HistoryRepository
     {
         private readonly DbContextConfiguration _contextConfiguration;
+        private IModel _historyModel;
 
         public HistoryRepository([NotNull] DbContextConfiguration contextConfiguration)
         {
@@ -22,18 +23,36 @@ namespace Microsoft.Data.Entity.Migrations.Infrastructure
             _contextConfiguration = contextConfiguration;
         }
 
-        public virtual SchemaQualifiedName TableName
+        public virtual DbContextConfiguration ContextConfiguration
         {
-            // TODO: We probably need a DefaultSchema instead of hardcoding "dbo".
-            get { return new SchemaQualifiedName("__MigrationHistory", "dbo"); }
+            get { return _contextConfiguration; }
         }
 
-        public virtual void Create()
+        public virtual string TableName
         {
-            using (var historyContext = CreateHistoryContext())
+            get { return "__MigrationHistory"; }
+        }
+
+        public virtual IModel HistoryModel
+        {
+            get { return _historyModel ?? (_historyModel = CreateHistoryModel()); }
+        }
+
+        public virtual DbContext CreateHistoryContext()
+        {
+            var options = new DbContextOptions().UseModel(HistoryModel);
+            var extensions = ContextConfiguration.ContextOptions.Extensions;
+
+            // TODO: Revisit and decide whether it is ok to reuse the extension instances
+            // from the user context for the history context.
+            foreach (var extension in extensions)
             {
-                historyContext.Database.Create();
+                options.AddBuildAction(c => c.AddOrUpdateExtension(extension));
             }
+
+            return new DbContext(
+                ContextConfiguration.Services.ServiceProvider,
+                options.BuildConfiguration());
         }
 
         public virtual IReadOnlyList<IMigrationMetadata> Migrations
@@ -45,7 +64,7 @@ namespace Microsoft.Data.Entity.Migrations.Infrastructure
                     return historyContext.Set<HistoryRow>()
                         .Where(h => h.ContextKey == CreateContextKey())
                         .Select(h => new MigrationMetadata(h.MigrationName, h.Timestamp))
-                        .OrderBy(m => m.Timestamp)
+                        .OrderBy(m => m.Timestamp + m.Name)
                         .ToArray();
                 }
             }
@@ -69,7 +88,7 @@ namespace Microsoft.Data.Entity.Migrations.Infrastructure
             }
         }
 
-        public virtual IModel CreateHistoryModel()
+        protected virtual IModel CreateHistoryModel()
         {
             var builder = new ModelBuilder();
 
@@ -79,39 +98,25 @@ namespace Microsoft.Data.Entity.Migrations.Infrastructure
                 .Properties(
                     ps =>
                     {
+                        // TODO: Add column constraints (FixedLength, MaxLength) if needed.
                         ps.Property(e => e.MigrationName);
                         ps.Property(e => e.Timestamp);
                         ps.Property(e => e.ContextKey);
                     })
-                .Key(e => new { e.MigrationName, e.ContextKey });
+                .Key(e => new { e.Timestamp, e.MigrationName, e.ContextKey });
 
             return builder.Model;
         }
 
-        public virtual DbContext CreateHistoryContext()
+        protected virtual string CreateContextKey()
         {
-            var contextOptions = new DbContextOptions().UseModel(CreateHistoryModel());
-            var extensions = _contextConfiguration.ContextOptions.Extensions;
-
-            foreach (var item in extensions)
-            {
-                var extension = item;
-                contextOptions.AddBuildAction(c => c.AddOrUpdateExtension(extension));
-            }
-
-            return new DbContext(
-                _contextConfiguration.Services.ServiceProvider, 
-                contextOptions.BuildConfiguration());
-        }
-
-        public virtual string CreateContextKey()
-        {
-            return _contextConfiguration.Context.GetType().Name;
+            return ContextConfiguration.Context.GetType().Name;
         }
 
         private class HistoryRow
         {
-            public string MigrationName { get; set; }
+            // TODO: Which is better MigrationId or Timestamp+MigrationName?
+            public string MigrationName { get; set; }            
             public string Timestamp { get; set; }
             public string ContextKey { get; set; }            
         }

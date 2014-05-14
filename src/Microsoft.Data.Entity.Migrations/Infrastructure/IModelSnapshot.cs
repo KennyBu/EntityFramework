@@ -7,6 +7,6 @@ namespace Microsoft.Data.Entity.Migrations.Infrastructure
 {
     public interface IModelSnapshot
     {
-        IModel GetModel();
+        IModel Model { get; }
     }
 }

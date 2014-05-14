@@ -14,12 +14,11 @@ namespace Microsoft.Data.Entity.Migrations.Infrastructure
     public class MigrationScaffolder
     {
         private readonly DbContextConfiguration _contextConfiguration;
-        // TODO: Create and use language agnostic abstraction if we plan to support anything other than CSharp.
-        private readonly CSharpMigrationCodeGenerator _migrationCodeGenerator;
+        private readonly MigrationCodeGenerator _migrationCodeGenerator;
 
         public MigrationScaffolder(
             [NotNull] DbContextConfiguration contextConfiguration,
-            [NotNull] CSharpMigrationCodeGenerator migrationCodeGenerator)
+            [NotNull] MigrationCodeGenerator migrationCodeGenerator)
         {
             Check.NotNull(contextConfiguration, "contextConfiguration");
             Check.NotNull(migrationCodeGenerator, "migrationCodeGenerator");
@@ -28,14 +27,24 @@ namespace Microsoft.Data.Entity.Migrations.Infrastructure
             _migrationCodeGenerator = migrationCodeGenerator;
         }
 
+        public virtual DbContextConfiguration ContextConfiguration
+        {
+            get { return _contextConfiguration; }
+        }
+
+        public virtual MigrationCodeGenerator MigrationCodeGenerator
+        {
+            get { return _migrationCodeGenerator; }
+        }
+
         public virtual string Namespace
         {
-            get { return _contextConfiguration.Context.GetType().Namespace + ".Migrations"; }
+            get { return ContextConfiguration.GetMigrationNamespace(); }
         }
 
         public virtual string Directory
         {
-            get { return _contextConfiguration.ContextOptions.Extensions.OfType<MigratorConfigurationExtension>().Single().Directory; }
+            get { return ContextConfiguration.GetMigrationDirectory(); }
         }
 
         public virtual void ScaffoldMigration([NotNull] IMigrationMetadata migration)
@@ -52,7 +61,6 @@ namespace Microsoft.Data.Entity.Migrations.Infrastructure
             OnMigrationScaffolded(className, stringBuilder.ToString(), designerStringBuilder.ToString());
         }
 
-        // TODO: Consider splitting model scaffolding to its own class.
         public virtual void ScaffoldModel([NotNull] IModel model)
         {
             Check.NotNull(model, "model");
@@ -60,7 +68,7 @@ namespace Microsoft.Data.Entity.Migrations.Infrastructure
             var stringBuilder = new IndentedStringBuilder();
             var className = GetClassName(model);
 
-            _migrationCodeGenerator.ModelGenerator.GenerateClass(Namespace, className, model, stringBuilder);
+            _migrationCodeGenerator.ModelCodeGenerator.GenerateClass(Namespace, className, model, stringBuilder);
 
             OnModelScaffolded(className, stringBuilder.ToString());
         }
@@ -92,7 +100,7 @@ namespace Microsoft.Data.Entity.Migrations.Infrastructure
 
         protected virtual void OnModelScaffolded(string className, string model)
         {
-            var fileName = className + _migrationCodeGenerator.ModelGenerator.CodeFileExtension;
+            var fileName = className + _migrationCodeGenerator.ModelCodeGenerator.CodeFileExtension;
 
             WriteFile(fileName, model, FileMode.Create);
         }

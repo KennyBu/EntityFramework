@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Metadata;
 using Microsoft.Data.Entity.Migrations;
+using Microsoft.Data.Entity.Migrations.Infrastructure;
 using Microsoft.Data.Entity.Migrations.Model;
 using Microsoft.Data.Entity.Relational;
 using Microsoft.Data.Entity.SqlServer.Utilities;
@@ -22,50 +23,60 @@ namespace Microsoft.Data.Entity.SqlServer
         private readonly ModelDiffer _modelDiffer;
         private readonly SqlServerMigrationOperationSqlGenerator _sqlGenerator;
         private readonly SqlStatementExecutor _statementExecutor;
+        private readonly HistoryRepository _historyRepository;
 
         public SqlServerDataStoreCreator(
             [NotNull] SqlServerConnection connection,
             [NotNull] ModelDiffer modelDiffer,
             [NotNull] SqlServerMigrationOperationSqlGenerator sqlGenerator,
-            [NotNull] SqlStatementExecutor statementExecutor)
+            [NotNull] SqlStatementExecutor statementExecutor,
+            [NotNull] HistoryRepository historyRepository)
         {
             Check.NotNull(connection, "connection");
             Check.NotNull(modelDiffer, "modelDiffer");
             Check.NotNull(sqlGenerator, "sqlGenerator");
             Check.NotNull(statementExecutor, "statementExecutor");
+            Check.NotNull(historyRepository, "historyRepository");
 
             _connection = connection;
             _modelDiffer = modelDiffer;
             _sqlGenerator = sqlGenerator;
             _statementExecutor = statementExecutor;
+            _historyRepository = historyRepository;
         }
 
         public override void Create(IModel model)
         {
-            if (!Exists())
+            if (Exists())
             {
-                using (var masterConnection = _connection.CreateMasterConnection())
-                {
-                    _statementExecutor.ExecuteNonQuery(masterConnection, CreateCreateOperations());
-                    ClearPool();
-                }
+                return;
+            }
+
+            using (var masterConnection = _connection.CreateMasterConnection())
+            {
+                _statementExecutor.ExecuteNonQuery(masterConnection, CreateCreateOperations());
+                ClearPool();
             }
 
             // TODO: If this fails, we're left with an empty database
+            _statementExecutor.ExecuteNonQuery(_connection.DbConnection, CreateSchemaCommands(_historyRepository.HistoryModel));            
             _statementExecutor.ExecuteNonQuery(_connection.DbConnection, CreateSchemaCommands(model));
         }
 
         public override async Task CreateAsync(IModel model, CancellationToken cancellationToken = default(CancellationToken))
         {
-            if (!await ExistsAsync(cancellationToken))
+            if (await ExistsAsync(cancellationToken))
             {
-                using (var masterConnection = _connection.CreateMasterConnection())
-                {
-                    await _statementExecutor.ExecuteNonQueryAsync(masterConnection, CreateCreateOperations(), cancellationToken);
-                    ClearPool();
-                }
+                return;
             }
 
+            using (var masterConnection = _connection.CreateMasterConnection())
+            {
+                await _statementExecutor.ExecuteNonQueryAsync(masterConnection, CreateCreateOperations(), cancellationToken);
+                ClearPool();
+            }
+
+            await _statementExecutor.ExecuteNonQueryAsync(_connection.DbConnection, CreateSchemaCommands(_historyRepository.HistoryModel));
             await _statementExecutor.ExecuteNonQueryAsync(_connection.DbConnection, CreateSchemaCommands(model), cancellationToken);
         }
 

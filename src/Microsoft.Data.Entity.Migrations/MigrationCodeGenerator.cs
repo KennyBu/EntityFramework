@@ -4,37 +4,64 @@
 using System.Collections.Generic;
 using JetBrains.Annotations;
 using Microsoft.Data.Entity.Migrations.Model;
+using Microsoft.Data.Entity.Relational;
 using Microsoft.Data.Entity.Utilities;
+using Microsoft.Data.Entity.Migrations.Infrastructure;
+using Microsoft.Data.Entity.Migrations.Utilities;
 
 namespace Microsoft.Data.Entity.Migrations
 {
     public abstract class MigrationCodeGenerator
     {
-        // TODO: Add main Generate method and revisit to decide what needs to be public vs. protected.
+        private readonly ModelCodeGenerator _modelCodeGenerator;
 
-        protected virtual IReadOnlyList<string> GetNamespaces(IEnumerable<MigrationOperation> operations)
+        public MigrationCodeGenerator([NotNull] ModelCodeGenerator modelCodeGenerator)
+        {
+            Check.NotNull(modelCodeGenerator, "modelCodeGenerator");
+
+            _modelCodeGenerator = modelCodeGenerator;
+        }
+
+        public virtual ModelCodeGenerator ModelCodeGenerator
+        {
+            get { return _modelCodeGenerator; }
+        }
+
+        public abstract string CodeFileExtension { get; }
+
+        public virtual IReadOnlyList<string> GetNamespaces(IEnumerable<MigrationOperation> operations)
         {
             return GetDefaultNamespaces();
         }
 
-        protected virtual IReadOnlyList<string> GetDefaultNamespaces()
+        public virtual IReadOnlyList<string> GetDefaultNamespaces()
         {
-            return
-                new[]
-                    {
-                        "Microsoft.Data.Entity.Migrations",
-                        "Microsoft.Data.Entity.Migrations.Builders",
-                    };
+            return new[]
+                {
+                    "Microsoft.Data.Entity.Migrations",
+                    "Microsoft.Data.Entity.Migrations.Builders",
+                };
         }
 
-        protected virtual IReadOnlyList<string> GetMetadataDefaultNamespaces()
+        public virtual IReadOnlyList<string> GetMetadataDefaultNamespaces()
         {
-            return
-                new[]
-                    {
-                        "Microsoft.Data.Entity.Migrations.Infrastructure"
-                    };
+            return new[]
+                {
+                    "Microsoft.Data.Entity.Migrations.Infrastructure"
+                };
         }
+
+        public abstract void GenerateClass(
+            [NotNull] string @namespace,
+            [NotNull] string className,
+            [NotNull] IMigrationMetadata migration,
+            [NotNull] IndentedStringBuilder stringBuilder);
+
+        public abstract void GenerateDesignerClass(
+            [NotNull] string @namespace,
+            [NotNull] string className,
+            [NotNull] IMigrationMetadata migration,
+            [NotNull] IndentedStringBuilder stringBuilder);
 
         public abstract void Generate([NotNull] CreateDatabaseOperation createDatabaseOperation, [NotNull] IndentedStringBuilder stringBuilder);
         public abstract void Generate([NotNull] DropDatabaseOperation dropDatabaseOperation, [NotNull] IndentedStringBuilder stringBuilder);

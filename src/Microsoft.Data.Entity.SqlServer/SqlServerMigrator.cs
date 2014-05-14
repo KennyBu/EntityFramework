@@ -4,6 +4,7 @@
 using Microsoft.Data.Entity.Infrastructure;
 using Microsoft.Data.Entity.Migrations;
 using Microsoft.Data.Entity.Migrations.Infrastructure;
+using Microsoft.Data.Entity.Migrations.Utilities;
 using Microsoft.Data.Entity.Relational;
 using Microsoft.Data.Entity.SqlServer.Utilities;
 
@@ -20,10 +21,10 @@ namespace Microsoft.Data.Entity.SqlServer
                 Check.NotNull(contextConfiguration, "contextConfiguration"), 
                 historyRepository, 
                 migrationAssembly, 
-                migrationScaffolder, 
-                GetService<ModelDiffer>(contextConfiguration), 
-                GetService<SqlServerMigrationOperationSqlGenerator>(contextConfiguration), 
-                GetService<SqlStatementExecutor>(contextConfiguration))
+                migrationScaffolder,
+                contextConfiguration.GetService<ModelDiffer>(),
+                contextConfiguration.GetService<SqlServerMigrationOperationSqlGenerator>(),
+                contextConfiguration.GetService<SqlStatementExecutor>())
         {
         }
     }
